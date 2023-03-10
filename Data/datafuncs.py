@@ -5,6 +5,7 @@ Functions that simulates and loads in data for the Variational Autoencoder
 Created on Wed Apr 20 14:31:58 2022
 
 @author: MauritsvdOever
+
 """
 
 
@@ -35,7 +36,7 @@ def GenerateNormalData(dims, n, correlated_dims, rho):
     
     for i in range(0, correlated_dims):
         for col in range(1, amount_of_cols_per_dim):
-            array[:,counter+col] = rho*array[:,counter] + np.sqrt(1-rho**2)* array[:,counter+col]
+            array[:,counter+col] = rho*array[:,counter] + np.sqrt(1-rho**2) * array[:,counter+col]
         counter += amount_of_cols_per_dim
     
     return array
@@ -103,7 +104,7 @@ def Yahoo(list_of_ticks, startdate, enddate, retsorclose = 'rets'):
     
     if retsorclose == 'rets':
         dfrets  = np.log(dfclose) - np.log(dfclose.shift(1))
-        return dfrets
+        return dfrets.iloc[1:,:]
     else:
         return dfclose
 
