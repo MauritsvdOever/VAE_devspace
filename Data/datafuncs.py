@@ -115,8 +115,30 @@ def Yahoo(list_of_ticks, startdate, enddate, retsorclose = 'rets'):
 
     
 
+def get_data(data_type):
+    
+    list_of_ticks = ['AMZN', 'BA', 'CMCSA', 'CSCO', 'GOOG', 'JPM', 'MA', 
+                     'META', 'NFLX', 'NVDA', 'PEP', 'TSLA', 'TSM', 'V', 'WMT']
+
+    startdate       = '2010-01-01'
+    enddate         = '2023-01-01'
+    dims            = 12
+    n               = 10000
+    correlated_dims = 3
+    rho             = 0.75
     
     
+    if data_type == 'normal':
+        array = GenerateNormalData(dims, n, correlated_dims, rho)
+    elif data_type == 't':
+        array = GenerateStudentTData(dims, n, correlated_dims, rho)
+    elif data_type == 'returns':
+        array = Yahoo(list_of_ticks, startdate, enddate)
+    else:
+        print("Data type not valid, please choose from normal, t, or returns.")
+        return
+    
+    return array
     
     
     
