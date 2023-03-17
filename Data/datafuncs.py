@@ -24,20 +24,25 @@ def GenerateNormalData(dims, n, correlated_dims, rho):
 
     """
     import numpy as np
+    from copulae import GaussianCopula 
+    from scipy.stats import norm
   
     array = np.empty((n,dims))
-    
-    for variable in range(dims):
-        array[:,variable] = np.random.normal(0, 1, n)
-        
-    amount_of_cols_per_dim = int(dims / correlated_dims)
+    cols_per_dim = int(dims / correlated_dims)
+    last_dim_cols = dims % correlated_dims + cols_per_dim
     
     counter = 0
+    for i in range(correlated_dims - 1):
+        cop = GaussianCopula(dim = cols_per_dim)
+        cop.params = np.array([rho]*len(cop.params))
+        
+        array[:,counter : counter+cols_per_dim] = norm.ppf(cop.random(n))
+        counter += cols_per_dim
+        del cop
     
-    for i in range(0, correlated_dims):
-        for col in range(1, amount_of_cols_per_dim):
-            array[:,counter+col] = rho*array[:,counter] + np.sqrt(1-rho**2) * array[:,counter+col]
-        counter += amount_of_cols_per_dim
+    cop = GaussianCopula(dim = last_dim_cols)
+    cop.params = np.array([rho]*len(cop.params))
+    array[:,counter:] = norm.ppf(cop.random(n))
     
     return array
 
@@ -56,28 +61,28 @@ def GenerateStudentTData(dims, n, correlated_dims, rho):
     a n by dims array of correlated student t data, with degrees of freedom being random from
 
     """
-    import random
-    from copulae import GaussianCopula
     import numpy as np
+    from copulae import GaussianCopula 
     from scipy.stats import t
-    array = np.zeros((n,dims))
+  
+    array = np.empty((n,dims))
+    cols_per_dim = int(dims / correlated_dims)
+    last_dim_cols = dims % correlated_dims + cols_per_dim
     
-    cols_per_dim = int(dims/correlated_dims)
+    counter = 0
+    for i in range(correlated_dims - 1):
+        cop = GaussianCopula(dim = cols_per_dim)
+        cop.params = np.array([rho]*len(cop.params))
+        
+        array[:,counter : counter+cols_per_dim] = t.ppf(cop.random(n), df=np.random.randint(3,11))
+        counter += cols_per_dim
+        del cop
     
-    if cols_per_dim == 1:
-        for col in range(array.shape[1]):
-            array[:,col] = np.random.standard_t(df=random.randint(3,10), size=n)
-            
-    else:
-        counter = 0
-        for dim in range(correlated_dims):
-            cop = GaussianCopula(dim = cols_per_dim)
-            cop.params = np.array([rho]*len(cop.params))
-            array[:,counter:counter+cols_per_dim] = cop.random(n)
-            counter += cols_per_dim
+    cop = GaussianCopula(dim = last_dim_cols)
+    cop.params = np.array([rho]*len(cop.params))
+    array[:,counter:] = t.ppf(cop.random(n), df=np.random.randint(3,11))
     
     return array
-
     
 def Yahoo(list_of_ticks, startdate, enddate, retsorclose = 'rets'):
     '''
