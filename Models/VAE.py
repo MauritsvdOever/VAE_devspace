@@ -298,7 +298,6 @@ class VAE(nn.Module):
         MM = self.MM(z)
         
         self.REs = (X - x_prime)**2
-        # self.REs = (self.unstandardize_Xprime(X) - self.unstandardize_Xprime(x_prime))**2
         
         RE = self.REs.mean() # mean squared error of reconstruction
         

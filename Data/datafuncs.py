@@ -120,7 +120,7 @@ def get_data(data_type):
     list_of_ticks = ['AMZN', 'BA', 'CMCSA', 'CSCO', 'GOOG', 'JPM', 'MA', 
                      'META', 'NFLX', 'NVDA', 'PEP', 'TSLA', 'TSM', 'V', 'WMT']
 
-    startdate       = '2010-01-01'
+    startdate       = '2013-01-01'
     enddate         = '2023-01-01'
     dims            = 12
     n               = 10000
