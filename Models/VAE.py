@@ -19,8 +19,6 @@ class VAE(nn.Module):
     Inherits from nn.Module to construct VAE based on given data and 
     desired dimensions. 
     
-    To do:
-        - optimize hyperparams
     """
     
     def __init__(self, X, dim_Z, layers=3, standardize = True, batch_wise=True, done=False, plot=False, dist='normal'):
