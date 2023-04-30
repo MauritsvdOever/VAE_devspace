@@ -51,7 +51,7 @@ class VAE(nn.Module):
             self.X     = self.force_tensor(X)
         
         
-        self.multivariate = False
+        self.multivariate = True
 
         self.dim_X = X.shape[1]
         self.dim_Z = dim_Z
@@ -67,7 +67,7 @@ class VAE(nn.Module):
         self.beta = 1.0 # setting beta to zero is equivalent to a normal autoencoder
         self.batch_wise = batch_wise
             
-        # Tanh for now
+        # LeakyReLU for now
         self.encoder = self.construct_encoder(layers)
         self.decoder = self.construct_decoder(layers)
         
@@ -88,12 +88,12 @@ class VAE(nn.Module):
         """
         network = OrderedDict()
         network['0'] = nn.Linear(self.dim_X, self.dim_Y)
-        network['1'] = nn.Tanh() 
+        network['1'] = nn.LeakyReLU() 
         
         count = 2
         for i in range(layers-2):
             network[str(count)]   = nn.Linear(self.dim_Y, self.dim_Y)
-            network[str(count+1)] = nn.Tanh()
+            network[str(count+1)] = nn.LeakyReLU()
             count += 2
         
         network[str(count)] = nn.Linear(self.dim_Y, self.dim_Z)
@@ -117,12 +117,12 @@ class VAE(nn.Module):
         """
         network = OrderedDict()
         network['0'] = nn.Linear(self.dim_Z, self.dim_Y)
-        network['1'] = nn.Tanh()
+        network['1'] = nn.LeakyReLU()
         
         count = 2
         for i in range(layers-2):
             network[str(count)]   = nn.Linear(self.dim_Y, self.dim_Y)
-            network[str(count+1)] = nn.Tanh()
+            network[str(count+1)] = nn.LeakyReLU()
             count += 2
         
         network[str(count)] = nn.Linear(self.dim_Y, self.dim_X)
@@ -179,7 +179,7 @@ class VAE(nn.Module):
         """
         # write code that forces X to be a tensor
         if type(X) != torch.Tensor:
-            return torch.Tensor(X).float()
+            return torch.Tensor(np.array(X)).float()
         else:
             return X.float() # force it to float anyway
     
@@ -256,9 +256,9 @@ class VAE(nn.Module):
             skew_score = (skews**2).mean()
             kurt_score = ((kurts - kurt_target)**2).mean()
         
-        
+        #print(std_score)
         # return (1/22)*mean_score + (10/22)*std_score + (1/22)*skew_score + (10/22)*kurt_score        
-        return mean_score + std_score + skew_score + kurt_score
+        return std_score #mean_score + std_score + skew_score + kurt_score
     
     
     def RE_MM_metric(self, epoch):
@@ -290,7 +290,9 @@ class VAE(nn.Module):
         
         z       = self.encoder(X)
         
-        x_prime = self.decoder(z)
+        noise   = torch.normal(mean=0, std=0.01, size=z.shape)
+        
+        x_prime = self.decoder(z + noise) # kingma & welling reparameterization
         
         # get negative average log-likelihood here
         MM = self.MM(z)
@@ -332,7 +334,7 @@ class VAE(nn.Module):
         
         optimizer = torch.optim.AdamW(self.parameters(),
                              lr = 0.01,
-                             weight_decay = 0.0) # specify some hyperparams for the optimizer
+                             weight_decay = 0.01, amsgrad=True) # specify some hyperparams for the optimizer
         
         
         self.epochs = epochs
@@ -340,8 +342,8 @@ class VAE(nn.Module):
         REs = np.zeros(epochs)
         MMs = np.zeros(epochs)
         
-        # for epoch in tqdm(range(epochs)):
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs)):
+        # for epoch in range(epochs):
             RE_MM = self.RE_MM_metric(epoch) # store RE and KL in tuple
             loss = self.loss_function(RE_MM) # calculate loss function based on tuple
             
@@ -372,5 +374,38 @@ class VAE(nn.Module):
         win32api.MessageBox(0, 'The model is done calibrating :)', 'Done!', 0x00001040)
         return
     
+    def fit_garchs(self):
+        """
+        fit and store garchs, and vols. To be run after fitting the model
 
+        Returns
+        -------
+        None.
+
+        """
+        from arch import arch_model
+        
+        
+        scaling = 1
+        z = self.encoder(self.X)
+        
+        self.garchs = []
+        self.sigmas   = np.zeros((self.n, self.K))
+        
+        for col in range(self.K):
+            series = self.data[:,col].copy(order='C')
             
+            garch = arch_model(series*scaling, mean='zero', vol='GARCH', dist=self.dist, rescale=True)
+            garch = garch.fit(disp=False)
+            # print(garch.params)
+            # print(f'estimated nu = {garch.params.nu}')
+            self.sigmas[:,col] = garch.conditional_volatility/scaling
+            self.garchs += [garch]
+        
+        return self.garchs, self.sigmas
+    
+    def insample_VaRs(self):
+        self.fit_garchs
+
+    def outofsample_VaRs(self, data):
+        pass
