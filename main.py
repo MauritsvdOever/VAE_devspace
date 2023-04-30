@@ -20,6 +20,8 @@ To do list:
     - tech demo prep
     - implement grid-search routine
 """
+# cell to load packages/get data
+
 import pandas as pd
 import seaborn as sns
 from Data import datafuncs 
@@ -27,23 +29,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 array  = datafuncs.get_data('returns')
-dim_Z  = 2
+
+#%% cell to define variables
+
+dim_Z  = 3
 dist   = 'normal'
-epochs = 400
-layers = 1
+epochs = 10000
+layers = 2
 
 #%%
 from Models.VAE import VAE
 
-model = VAE(array, dim_Z, layers=layers, done=False, dist=dist, plot=False)
-model.fit(epochs)
-
-z = model.encoder(model.X).detach().numpy()
-
-#%%
-from Models.VAE import VAE
+q = 0.05
 
 model = VAE(array, dim_Z, layers=layers, done=False, dist=dist, plot=False)
 model.fit(epochs)
 
-test_garchs, test_sigmas = model.fit_garchs()
+model.insample_VaRs(quantile=q, plot=True, output=True)

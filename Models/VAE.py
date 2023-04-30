@@ -57,6 +57,7 @@ class VAE(nn.Module):
         self.dim_Z = dim_Z
         self.dim_Y = int((self.dim_X + self.dim_Z) / 2)
         self.n     = X.shape[0]
+        self.K     = X.shape[1]
         self.done_bool = done
         self.plot = plot
         self.dist = dist
@@ -290,7 +291,7 @@ class VAE(nn.Module):
         
         z       = self.encoder(X)
         
-        noise   = torch.normal(mean=0, std=0.01, size=z.shape)
+        noise   = torch.normal(mean=0, std=0.05, size=z.shape)
         
         x_prime = self.decoder(z + noise) # kingma & welling reparameterization
         
@@ -383,6 +384,7 @@ class VAE(nn.Module):
         None.
 
         """
+        
         from arch import arch_model
         
         
@@ -390,10 +392,10 @@ class VAE(nn.Module):
         z = self.encoder(self.X)
         
         self.garchs = []
-        self.sigmas   = np.zeros((self.n, self.K))
+        self.sigmas   = np.zeros((self.X.shape[0], self.dim_Z))
         
-        for col in range(self.K):
-            series = self.data[:,col].copy(order='C')
+        for col in range(self.dim_Z):
+            series = self.X[:,col].detach().numpy()
             
             garch = arch_model(series*scaling, mean='zero', vol='GARCH', dist=self.dist, rescale=True)
             garch = garch.fit(disp=False)
@@ -402,10 +404,38 @@ class VAE(nn.Module):
             self.sigmas[:,col] = garch.conditional_volatility/scaling
             self.garchs += [garch]
         
-        return self.garchs, self.sigmas
+        return 
     
-    def insample_VaRs(self):
-        self.fit_garchs
-
+    def insample_VaRs(self, quantile, plot = False, output = False):
+        from scipy import stats
+        
+        sim_count = 1000
+        
+        self.fit_garchs()
+        VaRs = np.zeros(shape=(len(self.sigmas)))
+        avg_return = self.unstandardize_Xprime(self.X).detach().numpy().mean(axis=1)
+        
+        for row in range(len(VaRs)):
+            sims = np.random.normal(loc=0, scale=1, size=(sim_count, self.dim_Z))
+            sims = torch.Tensor(sims * self.sigmas[row,:])
+            sims = self.unstandardize_Xprime(self.decoder(sims)).detach().numpy()
+            port_return = sims.mean(axis=1)
+            VaRs[row] = np.quantile(port_return, 0.05)
+        
+        if plot:
+            plt.plot(avg_return)
+            plt.plot(VaRs)
+            plt.title("Value at Risks for X, q = " + str(quantile))
+            plt.show()
+        
+        if output:
+            exceedances = sum(VaRs > avg_return)
+            binom_pval = stats.binomtest(exceedances, len(VaRs), p=quantile).pvalue
+            print("")
+            print("exceedance ratio = ", exceedances/len(VaRs))
+            print("p-value          = ", binom_pval)
+            
+        return VaRs
+            
     def outofsample_VaRs(self, data):
         pass
