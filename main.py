@@ -55,7 +55,7 @@ layers = 1
 #%% 
 from Models.VAE import VAE
 
-q = 0.05
+q = 0.025
 
 avg_ratio = 0
 avg_pval  = 0
@@ -78,7 +78,7 @@ for year in np.linspace(2018,2022,5):
         if binom_pval > pval:
             pval = binom_pval
             ratio = ratio
-    print('ratio of '+str(year)+' = ' + str(ratio))
+    print('ratio of '+str(int(year))+' = ' + str(ratio))
     avg_ratio += ratio
     avg_pval  += pval
     
