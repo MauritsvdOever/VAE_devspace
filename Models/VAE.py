@@ -461,7 +461,7 @@ class VAE(nn.Module):
         self.fit_garchs()
         z = self.encoder(self.X)
         tensor_data = self.encoder(self.standardize_X(self.force_tensor(data)))
-        avg_return = data.mean(axis=1)
+        avg_return = np.array(data).mean(axis=1)
         
         VaRs = np.zeros(shape=(len(tensor_data)))
         
@@ -489,13 +489,14 @@ class VAE(nn.Module):
             plt.title("Value at Risks for X, q = " + str(quantile))
             plt.show()
         
+        exceedances = sum(VaRs > avg_return)
+        binom_pval = stats.binomtest(exceedances, len(VaRs), p=quantile).pvalue
+        
         if output:
-            exceedances = sum(VaRs > avg_return)
-            binom_pval = stats.binomtest(exceedances, len(VaRs), p=quantile).pvalue
             print("")
             print("exceedance ratio = ", exceedances/len(VaRs))
             print("p-value          = ", binom_pval)
             print("")
         
-        return VaRs
+        return VaRs, (exceedances/len(VaRs), binom_pval)
         #return tensor_data.detach().numpy()

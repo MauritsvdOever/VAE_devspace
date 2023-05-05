@@ -27,6 +27,7 @@ import seaborn as sns
 from Data import datafuncs 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 array  = datafuncs.get_data('returns')
 
@@ -35,20 +36,20 @@ array  = datafuncs.get_data('returns')
 dim_Z  = 3
 dist   = 'normal'
 epochs = 1000
-layers = 2
+layers = 1
 
 #%%
-from Models.VAE import VAE
+# from Models.VAE import VAE
 
-q = 0.05
+# q = 0.05
 
 
-for i in range(20):
-    model = VAE(array, dim_Z, layers=layers, done=False, dist=dist, plot=False)
-    model.fit(epochs)
+# for i in range(20):
+#     model = VAE(array, dim_Z, layers=layers, done=False, dist=dist, plot=False)
+#     model.fit(epochs)
     
-    model.insample_VaRs(quantile=q, plot=False, output=True)
-    del model
+#     model.insample_VaRs(quantile=q, plot=False, output=True)
+#     del model
 
 
 #%% 
@@ -56,14 +57,32 @@ from Models.VAE import VAE
 
 q = 0.05
 
-split_date = pd.to_datetime('01-01-2022')
-start_date = split_date - pd.offsets.DateOffset(years=5)
-
-for i in range(20):
-    X_train = array.loc[(array.index < split_date) * (array.index > start_date)].copy()
-    X_test  = array.loc[array.index > split_date].copy()
+avg_ratio = 0
+avg_pval  = 0
+for year in np.linspace(2018,2022,5):
     
-    model = VAE(X_train, dim_Z, layers=layers)
-    model.fit(epochs)
+    ratio = 0
+    pval  = 0
+    for i in range(20):
+        split_date = pd.to_datetime('01-01-'+str(int(year)))
+        start_date = split_date - pd.offsets.DateOffset(years=5)
+        
+        X_train = array.loc[(array.index < split_date) * (array.index > start_date)].copy()
+        X_test  = array.loc[array.index > split_date].copy()
+        
+        model = VAE(X_train, dim_Z, layers=layers)
+        model.fit(epochs)
     
-    test = model.outofsample_VaRs(X_test, q, output=True)
+        test, (ratio, binom_pval) = model.outofsample_VaRs(X_test, q, output=False, plot=False)
+        del model
+        if binom_pval > pval:
+            pval = binom_pval
+            ratio = ratio
+    print('ratio of '+str(year)+' = ' + str(ratio))
+    avg_ratio += ratio
+    avg_pval  += pval
+    
+print('')
+print('')
+print('average ratio = ', str(avg_ratio/5))
+print('average pval  = ', str(avg_pval/5))
