@@ -291,7 +291,7 @@ class VAE(nn.Module):
         
         z       = self.encoder(X)
         
-        noise   = torch.normal(mean=0, std=0.05, size=z.shape)
+        noise   = torch.normal(mean=0, std=0.01, size=z.shape)
         
         x_prime = self.decoder(z + noise) # kingma & welling reparameterization
         
@@ -333,9 +333,9 @@ class VAE(nn.Module):
         REs  = []
         MMs  = []
         
-        optimizer = torch.optim.AdamW(self.parameters(),
+        optimizer = torch.optim.Adagrad(self.parameters(),
                              lr = 0.01,
-                             weight_decay = 0.01, amsgrad=True) # specify some hyperparams for the optimizer
+                             weight_decay = 0.001) # specify some hyperparams for the optimizer
         
         
         self.epochs = epochs
@@ -434,8 +434,68 @@ class VAE(nn.Module):
             print("")
             print("exceedance ratio = ", exceedances/len(VaRs))
             print("p-value          = ", binom_pval)
+            print("")
             
         return VaRs
             
-    def outofsample_VaRs(self, data):
-        pass
+    def outofsample_VaRs(self, data, quantile, plot = False, output = False):
+        """
+        
+
+        Parameters
+        ----------
+        data : numpy array, pd dataframe, or tensor array of data
+
+        Returns
+        -------
+        None.
+
+        """
+        from arch import arch_model
+        from scipy import stats
+        import numpy as np
+        import matplotlib.pyplot as plt
+        
+        sim_count = 1000
+        
+        self.fit_garchs()
+        z = self.encoder(self.X)
+        tensor_data = self.encoder(self.standardize_X(self.force_tensor(data)))
+        avg_return = data.mean(axis=1)
+        
+        VaRs = np.zeros(shape=(len(tensor_data)))
+        
+        sigmas = np.zeros(shape=(len(tensor_data), self.dim_Z))
+        sigmas_init = self.sigmas[-1,:]
+        
+        
+        for col in range(self.dim_Z):
+            print
+            sigmas[0,col] = self.garchs[col].params[0] + self.garchs[col].params[1] * z[-1,col]**2 + self.garchs[col].params[2] * self.sigmas[-1,col]**2
+            
+            for row in range(1,len(sigmas)):
+                sigmas[row,col] = self.garchs[col].params[0] + self.garchs[col].params[1] * tensor_data[row-1,col]**2 + self.garchs[col].params[2] * sigmas[row-1,col]
+        
+        for row in range(len(VaRs)):
+            sims = np.random.normal(loc=0, scale=1, size=(sim_count, self.dim_Z))
+            sims = torch.Tensor(sims * sigmas[row,:])
+            sims = self.unstandardize_Xprime(self.decoder(sims)).detach().numpy()
+            port_return = sims.mean(axis=1)
+            VaRs[row] = np.quantile(port_return, 0.05)
+          
+        if plot:
+            plt.plot(avg_return)
+            plt.plot(VaRs)
+            plt.title("Value at Risks for X, q = " + str(quantile))
+            plt.show()
+        
+        if output:
+            exceedances = sum(VaRs > avg_return)
+            binom_pval = stats.binomtest(exceedances, len(VaRs), p=quantile).pvalue
+            print("")
+            print("exceedance ratio = ", exceedances/len(VaRs))
+            print("p-value          = ", binom_pval)
+            print("")
+        
+        return VaRs
+        #return tensor_data.detach().numpy()

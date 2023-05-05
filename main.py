@@ -34,7 +34,7 @@ array  = datafuncs.get_data('returns')
 
 dim_Z  = 3
 dist   = 'normal'
-epochs = 10000
+epochs = 1000
 layers = 2
 
 #%%
@@ -42,7 +42,28 @@ from Models.VAE import VAE
 
 q = 0.05
 
-model = VAE(array, dim_Z, layers=layers, done=False, dist=dist, plot=False)
-model.fit(epochs)
 
-model.insample_VaRs(quantile=q, plot=True, output=True)
+for i in range(20):
+    model = VAE(array, dim_Z, layers=layers, done=False, dist=dist, plot=False)
+    model.fit(epochs)
+    
+    model.insample_VaRs(quantile=q, plot=False, output=True)
+    del model
+
+
+#%% 
+from Models.VAE import VAE
+
+q = 0.05
+
+split_date = pd.to_datetime('01-01-2022')
+start_date = split_date - pd.offsets.DateOffset(years=5)
+
+for i in range(20):
+    X_train = array.loc[(array.index < split_date) * (array.index > start_date)].copy()
+    X_test  = array.loc[array.index > split_date].copy()
+    
+    model = VAE(X_train, dim_Z, layers=layers)
+    model.fit(epochs)
+    
+    test = model.outofsample_VaRs(X_test, q, output=True)
