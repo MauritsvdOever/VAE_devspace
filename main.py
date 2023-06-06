@@ -35,7 +35,7 @@ array  = datafuncs.get_data('returns')
 
 dim_Z  = 3
 dist   = 'normal'
-epochs = 1000
+epochs = 400
 layers = 1
 
 #%%
@@ -70,7 +70,7 @@ for year in np.linspace(2018,2022,5):
         X_train = array.loc[(array.index < split_date) * (array.index > start_date)].copy()
         X_test  = array.loc[array.index > split_date].copy()
         
-        model = VAE(X_train, dim_Z, layers=layers)
+        model = VAE(X_train, dim_Z, layers=layers, batch_wise=False)
         model.fit(epochs)
     
         test, (ratio, binom_pval) = model.outofsample_VaRs(X_test, q, output=False, plot=False)
